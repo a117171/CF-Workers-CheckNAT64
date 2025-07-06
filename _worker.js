@@ -2,6 +2,7 @@ import { connect } from 'cloudflare:sockets';
 let 临时TOKEN, 永久TOKEN;
 export default {
     async fetch(request, env, ctx) {
+        const 网站图标 = env.ICO || 'https://cf-assets.www.cloudflare.com/dzlvafdwdttg/19kSkLSfWtDcspvQI5pit4/c5630cf25d589a0de91978ca29486259/performance-acceleration-bolt.svg';
         const url = new URL(request.url);
         const UA = request.headers.get('User-Agent') || 'null';
         const 路径 = url.pathname;
@@ -133,7 +134,6 @@ export default {
             }
         }
         // 直接返回HTML页面，路径解析交给前端处理
-        return new Response(临时TOKEN);
         return await HTML(url.hostname, 网站图标);
     },
 };
@@ -439,7 +439,561 @@ async function 双重哈希(文本) {
 
 async function HTML(hostname, 网站图标) {
     // 首页 HTML
-    const html = `<!DOCTYPE html>`;
+    const html = `<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DNS64/NAT64 可用性检测</title>
+    <link rel="icon" href="${网站图标}" type="image/x-icon">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            max-width: 600px;
+            width: 100%;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+        
+        .header h1 {
+            color: #333;
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .header p {
+            color: #666;
+            font-size: 1.1em;
+        }
+        
+        .form-group {
+            margin-bottom: 30px;
+        }
+        
+        .form-group label {
+            display: block;
+            color: #333;
+            font-weight: 600;
+            margin-bottom: 10px;
+            font-size: 1.1em;
+        }
+        
+        .dns64-container {
+            position: relative;
+        }
+        
+        .dns64-input {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e1e5e9;
+            border-radius: 12px;
+            font-size: 1em;
+            transition: all 0.3s ease;
+            background: #fff;
+        }
+        
+        .dns64-input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        .dropdown {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: #fff;
+            border: 2px solid #667eea;
+            border-top: none;
+            border-radius: 0 0 12px 12px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            z-index: 1000;
+            display: none;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        
+        .dropdown.show {
+            display: block;
+        }
+        
+        .dropdown-item {
+            padding: 12px 15px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border-bottom: 1px solid #f0f0f0;
+            font-size: 0.95em;
+        }
+        
+        .dropdown-item:last-child {
+            border-bottom: none;
+        }
+        
+        .dropdown-item:hover {
+            background: #667eea;
+            color: white;
+        }
+        
+        .check-btn {
+            width: 100%;
+            padding: 18px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 1.2em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-bottom: 30px;
+        }
+        
+        .check-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.3);
+        }
+        
+        .check-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .result {
+            margin-top: 30px;
+            padding: 25px;
+            border-radius: 12px;
+            display: none;
+        }
+        
+        .result.success {
+            background: linear-gradient(135deg, #4caf50, #45a049);
+            color: white;
+        }
+        
+        .result.error {
+            background: linear-gradient(135deg, #f44336, #e53935);
+            color: white;
+        }
+        
+        .result h3 {
+            margin-bottom: 20px;
+            font-size: 1.3em;
+        }
+        
+        .copy-section {
+            display: grid;
+            gap: 15px;
+            margin: 20px 0;
+        }
+        
+        .copy-item {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 15px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+        }
+        
+        .copy-item:hover {
+            background: rgba(255, 255, 255, 0.3);
+            border-color: rgba(255, 255, 255, 0.5);
+        }
+        
+        .copy-item .label {
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+        
+        .copy-item .value {
+            font-family: 'Courier New', monospace;
+            word-break: break-all;
+        }
+        
+        .ip-info {
+            margin-top: 20px;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+        }
+        
+        .ip-info h4 {
+            margin-bottom: 10px;
+        }
+        
+        .loading {
+            display: none;
+            text-align: center;
+            margin: 20px 0;
+        }
+        
+        .loading-spinner {
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top: 4px solid white;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        @keyframes octocat-wave {
+            0%, 100% { transform: rotate(0) }
+            20%, 60% { transform: rotate(-25deg) }
+            40%, 80% { transform: rotate(10deg) }
+        }
+        
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: #4caf50;
+            color: white;
+            padding: 15px 20px;
+            border-radius: 8px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+            transform: translateX(200%);
+            transition: all 0.3s ease;
+            z-index: 1000;
+            max-width: 300px;
+            word-wrap: break-word;
+        }
+        
+        .toast.show {
+            transform: translateX(0);
+        }
+
+        .github-corner {
+            position: fixed;
+            top: 0;
+            right: 0;
+            z-index: 1000;
+            transition: all 0.3s ease;
+        }
+        
+        .github-corner:hover {
+            transform: scale(1.05);
+        }
+        
+        .github-corner svg {
+            fill: rgba(102, 126, 234, 0.9);
+            color: #fff;
+            width: 80px;
+            height: 80px;
+            filter: drop-shadow(0 4px 8px rgba(0,0,0,0.2));
+            transition: all 0.3s ease;
+        }
+        
+        .github-corner:hover svg {
+            fill: rgba(102, 126, 234, 1);
+        }
+
+        .github-corner:hover .octo-arm {
+            animation: octocat-wave 560ms ease-in-out;
+        }
+
+        @media (max-width: 768px) {
+            .github-corner svg {
+                width: 60px;
+                height: 60px;
+            }
+            
+            .github-corner:hover .octo-arm {
+                animation: none;
+            }
+            
+            .github-corner .octo-arm {
+                animation: octocat-wave 560ms ease-in-out;
+            }
+        }
+    </style>
+</head>
+<body>
+  <a href="https://github.com/cmliu/CF-Workers-CheckNAT64" target="_blank" class="github-corner" aria-label="View source on Github">
+    <svg viewBox="0 0 250 250" aria-hidden="true">
+      <path d="M0,0 L115,115 L130,115 L142,142 L250,250 L250,0 Z"></path>
+      <path d="M128.3,109.0 C113.8,99.7 119.0,89.6 119.0,89.6 C122.0,82.7 120.5,78.6 120.5,78.6 C119.2,72.0 123.4,76.3 123.4,76.3 C127.3,80.9 125.5,87.3 125.5,87.3 C122.9,97.6 130.6,101.9 134.4,103.2" fill="currentColor" style="transform-origin: 130px 106px;" class="octo-arm"></path>
+      <path d="M115.0,115.0 C114.9,115.1 118.7,116.5 119.8,115.4 L133.7,101.6 C136.9,99.2 139.9,98.4 142.2,98.6 C133.8,88.0 127.5,74.4 143.8,58.0 C148.5,53.4 154.0,51.2 159.7,51.0 C160.3,49.4 163.2,43.6 171.4,40.1 C171.4,40.1 176.1,42.5 178.8,56.2 C183.1,58.6 187.2,61.8 190.9,65.4 C194.5,69.0 197.7,73.2 200.1,77.6 C213.8,80.2 216.3,84.9 216.3,84.9 C212.7,93.1 206.9,96.0 205.4,96.6 C205.1,102.4 203.0,107.8 198.3,112.5 C181.9,128.9 168.3,122.5 157.7,114.1 C157.9,116.9 156.7,120.9 152.7,124.9 L141.0,136.5 C139.8,137.7 141.6,141.9 141.8,141.8 Z" fill="currentColor" class="octo-body"></path>
+    </svg>
+  </a>
+    <div class="container">
+        <div class="header">
+            <h1>🌐 DNS64/NAT64 检测</h1>
+            <p>检测DNS64作为NAT64的PROXYIP可用性</p>
+        </div>
+        
+        <div class="form-group">
+            <label for="dns64Input">DNS64 Server/NAT64 Prefix</label>
+            <div class="dns64-container">
+                <input type="text" id="dns64Input" class="dns64-input" placeholder="请选择预设值或输入自定义值">
+                <div class="dropdown" id="dropdown">
+                    <div class="dropdown-item" onclick="selectPreset('2001:67c:2960:6464::/96')">2001:67c:2960:6464::/96</div>
+                    <div class="dropdown-item" onclick="selectPreset('2001:67c:2b0:db32::/96')">2001:67c:2b0:db32::/96</div>
+                    <div class="dropdown-item" onclick="selectPreset('dns64.fm2.ztvi.org')">dns64.fm2.ztvi.org</div>
+                    <div class="dropdown-item" onclick="selectPreset('dns64.cmi.ztvi.org')">dns64.cmi.ztvi.org</div>
+                </div>
+            </div>
+        </div>
+        
+        <button class="check-btn" onclick="checkNAT64()">🚀 开始检测</button>
+        
+        <div class="loading" id="loading">
+            <div class="loading-spinner"></div>
+            <p>正在检测中，请稍候...</p>
+        </div>
+        
+        <div class="result" id="result">
+            <!-- 结果将在这里显示 -->
+        </div>
+    </div>
+    
+    <div class="toast" id="toast"></div>
+    
+    <script>
+        const dns64Input = document.getElementById('dns64Input');
+        const dropdown = document.getElementById('dropdown');
+        
+        // 本地存储键名
+        const STORAGE_KEY = 'dns64_nat64_server';
+        
+        // 从本地存储读取值
+        function loadFromStorage() {
+            try {
+                const savedValue = localStorage.getItem(STORAGE_KEY);
+                if (savedValue) {
+                    dns64Input.value = savedValue;
+                }
+            } catch (error) {
+                console.warn('无法读取本地存储:', error);
+            }
+        }
+        
+        // 保存到本地存储
+        function saveToStorage(value) {
+            try {
+                localStorage.setItem(STORAGE_KEY, value);
+            } catch (error) {
+                console.warn('无法保存到本地存储:', error);
+            }
+        }
+        
+        function selectPreset(value) {
+            dns64Input.value = value;
+            saveToStorage(value);
+            hideDropdown();
+        }
+        
+        function showDropdown() {
+            if (dns64Input.value.trim() === '') {
+                dropdown.classList.add('show');
+            }
+        }
+        
+        function hideDropdown() {
+            dropdown.classList.remove('show');
+        }
+        
+        // 文本框聚焦时显示下拉框（如果为空）
+        dns64Input.addEventListener('focus', function() {
+            showDropdown();
+        });
+        
+        // 文本框失去焦点时隐藏下拉框
+        dns64Input.addEventListener('blur', function() {
+            // 延迟隐藏，以便点击下拉选项时有时间处理
+            setTimeout(hideDropdown, 150);
+        });
+        
+        // 监听输入事件
+        dns64Input.addEventListener('input', function() {
+            const value = this.value.trim();
+            saveToStorage(this.value); // 保存原始值（包含空格）
+            
+            if (value !== '') {
+                hideDropdown();
+            } else {
+                showDropdown();
+            }
+        });
+        
+        // 监听键盘事件
+        dns64Input.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                hideDropdown();
+            }
+        });
+        
+        // 点击页面其他地方时隐藏下拉框
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('.dns64-container')) {
+                hideDropdown();
+            }
+        });
+        
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.classList.add('show');
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000);
+        }
+        
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(() => {
+                showToast('已复制到剪贴板');
+            }).catch(() => {
+                // fallback for older browsers
+                const textArea = document.createElement('textarea');
+                textArea.value = text;
+                document.body.appendChild(textArea);
+                textArea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textArea);
+                showToast('已复制到剪贴板');
+            });
+        }
+        
+        async function checkNAT64() {
+            const dns64Value = dns64Input.value.trim();
+            const loading = document.getElementById('loading');
+            const result = document.getElementById('result');
+            const checkBtn = document.querySelector('.check-btn');
+            
+            // 显示加载状态
+            loading.style.display = 'block';
+            result.style.display = 'none';
+            checkBtn.disabled = true;
+            
+            try {
+                // 第一步：检测NAT64
+                const apiUrl = dns64Value 
+                    ? \`https://${hostname}/check?nat64=\${encodeURIComponent(dns64Value)}\`
+                    : \`https://${hostname}/check\`;
+                const checkResponse = await fetch(apiUrl);
+                const checkData = await checkResponse.json();
+                
+                if (!checkData.success) {
+                    // 检测失败
+                    result.className = 'result error';
+                    result.innerHTML = \`
+                        <h3>❌ 检测失败</h3>
+                        <p><strong>错误信息：</strong>\${checkData.message || '未知错误'}</p>
+                        <p><strong>NAT64 IPv6：</strong>\${checkData.nat64_ipv6}</p>
+                        <p>此DNS64/NAT64服务器不可用作PROXYIP</p>
+                    \`;
+                } else {
+                    // 检测成功，生成复制值
+                    const nat64Value = \`[\${checkData.nat64_ipv6}]\`;
+                    const proxyIPValue = \`ProxyIP.\${checkData.nat64_ipv6.replace(/:/g, '-')}.ip.090227.xyz\`;
+                    
+                    result.className = 'result success';
+                    result.innerHTML = \`
+                        <h3>✅ 检测成功</h3>
+                        <p>此DNS64/NAT64服务器可用作PROXYIP</p>
+                        
+                        <div class="copy-section">
+                            <div class="copy-item" onclick="copyToClipboard('\${nat64Value}')">
+                                <div class="label">NAT64 (点击复制)</div>
+                                <div class="value">\${nat64Value}</div>
+                            </div>
+                            <div class="copy-item" onclick="copyToClipboard('\${proxyIPValue}')">
+                                <div class="label">PROXYIP (点击复制)</div>
+                                <div class="value">\${proxyIPValue}</div>
+                            </div>
+                        </div>
+                        
+                        <div id="ipInfo" class="ip-info" style="display: none;">
+                            <h4>🌍 IP信息</h4>
+                            <div id="ipInfoContent"></div>
+                        </div>
+                    \`;
+                    
+                    // 第二步：获取IP信息
+                    if (checkData.trace_data && checkData.trace_data.ip) {
+                        try {
+                            const ipInfoResponse = await fetch(\`https://${hostname}/ip-info?token=${临时TOKEN}&ip=\${checkData.trace_data.ip}\`);
+                            const ipInfoData = await ipInfoResponse.json();
+                            
+                            if (ipInfoData.status === 'success') {
+                                document.getElementById('ipInfo').style.display = 'block';
+                                document.getElementById('ipInfoContent').innerHTML = \`
+                                    <p><strong>IP地址：</strong>\${ipInfoData.query}</p>
+                                    <p><strong>国家：</strong>\${ipInfoData.country} (\${ipInfoData.countryCode})</p>
+                                    <p><strong>地区：</strong>\${ipInfoData.regionName}, \${ipInfoData.city}</p>
+                                    <p><strong>ISP：</strong>\${ipInfoData.isp}</p>
+                                    <p><strong>AS：</strong>\${ipInfoData.as}</p>
+                                \`;
+                            }
+                        } catch (ipError) {
+                            console.error('获取IP信息失败:', ipError);
+                        }
+                    }
+                }
+                
+                result.style.display = 'block';
+                
+            } catch (error) {
+                console.error('检测错误:', error);
+                result.className = 'result error';
+                result.innerHTML = \`
+                    <h3>❌ 网络错误</h3>
+                    <p>请检查网络连接后重试</p>
+                    <p><strong>错误详情：</strong>\${error.message}</p>
+                \`;
+                result.style.display = 'block';
+            } finally {
+                loading.style.display = 'none';
+                checkBtn.disabled = false;
+            }
+        }
+        
+        // 回车键触发检测
+        dns64Input.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                checkNAT64();
+            }
+        });
+        
+        // 页面加载时读取缓存值
+        loadFromStorage();
+    </script>
+</body>
+</html>`;
     return new Response(html, {
         headers: { "content-type": "text/html;charset=UTF-8" }
     });

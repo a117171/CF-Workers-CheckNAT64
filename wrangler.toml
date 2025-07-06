@@ -1,0 +1,4 @@
+name = "cf-workers-checknat64"
+main = "_worker.js"
+compatibility_date = "2025-07-06"
+keep_vars = true
