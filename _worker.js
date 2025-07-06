@@ -11,24 +11,34 @@ export default {
         永久TOKEN = env.TOKEN || 临时TOKEN;
         if (路径 === '/check') {
             const 查询参数 = url.searchParams.get('dns64') || url.searchParams.get('nat64') || 'dns64.cmliussss.net';
+            const host = url.searchParams.get('host') || 'speed.cloudflare.com';
             try {
-                const ipv6地址 = await resolveToIPv6('speed.cloudflare.com', 查询参数);
+                const ipv6地址 = await resolveToIPv6(host, 查询参数);
 
                 // 使用 socket 方式请求 cdn-cgi/trace
                 const traceResult = await fetchCdnCgiTrace(ipv6地址);
 
                 if (traceResult.success) {
                     const result = parseCdnCgiTrace(traceResult.data);
-                    return new Response(JSON.stringify(result, null, 2), {
+                    const response = {
+                        success: true,
+                        nat64_ipv6: ipv6地址,
+                        cdn_cgi_url: `http://[${ipv6地址}]/cdn-cgi/trace`,
+                        trace_data: result,
+                        timestamp: new Date().toISOString()
+                    };
+                    return new Response(JSON.stringify(response, null, 2), {
                         status: 200,
                         headers: { 'Content-Type': 'application/json' }
                     });
                 } else {
                     return new Response(JSON.stringify({
+                        success: false,
                         nat64_ipv6: ipv6地址,
                         cdn_cgi_url: `http://[${ipv6地址}]/cdn-cgi/trace`,
                         error: '请求失败',
-                        message: traceResult.error
+                        message: traceResult.error,
+                        timestamp: new Date().toISOString()
                     }, null, 2), {
                         status: 500,
                         headers: { 'Content-Type': 'application/json' }
@@ -36,7 +46,12 @@ export default {
                 }
             } catch (error) {
                 console.error('解析错误:', error);
-                return new Response(JSON.stringify({ error: '解析失败', message: error.message }), {
+                return new Response(JSON.stringify({
+                    success: false,
+                    error: '解析失败',
+                    message: error.message,
+                    timestamp: new Date().toISOString()
+                }, null, 2), {
                     status: 500,
                     headers: { 'Content-Type': 'application/json' }
                 });
@@ -117,7 +132,9 @@ export default {
                 });
             }
         }
+        // 直接返回HTML页面，路径解析交给前端处理
         return new Response(临时TOKEN);
+        return await HTML(url.hostname, 网站图标);
     },
 };
 
@@ -418,4 +435,12 @@ async function 双重哈希(文本) {
     const 第二次十六进制 = 第二次哈希数组.map(字节 => 字节.toString(16).padStart(2, '0')).join('');
 
     return 第二次十六进制.toLowerCase();
+}
+
+async function HTML(hostname, 网站图标) {
+    // 首页 HTML
+    const html = `<!DOCTYPE html>`;
+    return new Response(html, {
+        headers: { "content-type": "text/html;charset=UTF-8" }
+    });
 }
