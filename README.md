@@ -2,7 +2,7 @@
 ![demo](./demo.jpeg)
 ## 🌐 项目简介
 
-CF-Workers-CheckNAT64 是一个基于 Cloudflare Workers 的工具，用于检测 DNS64/NAT64 服务器是否可以作为代理IP使用。该工具能够验证 NAT64 连接的可用性，帮助用户快速找到可用的代理节点。
+CF-Workers-CheckNAT64 是一个基于 Cloudflare Workers 的工具，用于检测 DNS64/NAT64 服务器是否可以作为ProxyIP使用。
 
 ## ✨ 主要功能
 
