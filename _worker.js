@@ -444,7 +444,7 @@ async function HTML(hostname, 网站图标) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DNS64/NAT64 可用性检测</title>
+    <title>Check NAT64/DNS64 可用性检测</title>
     <link rel="icon" href="${网站图标}" type="image/x-icon">
     <style>
         * {
@@ -938,7 +938,7 @@ async function HTML(hostname, 网站图标) {
                         </div>
                         
                         <div id="ipInfo" class="ip-info" style="display: none;">
-                            <h4>🌍 IP信息</h4>
+                            <h4>🌍 落地IP信息</h4>
                             <div id="ipInfoContent"></div>
                         </div>
                     \`;
