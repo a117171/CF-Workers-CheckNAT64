@@ -7,7 +7,7 @@ export default {
         const UA = request.headers.get('User-Agent') || 'null';
         const 路径 = url.pathname;
         const currentDate = new Date();
-        const timestamp = Math.ceil(currentDate.getTime() / (1000 * 60 * 31)); // 每31分钟一个时间戳
+        const timestamp = Math.ceil(currentDate.getTime() / (1000 * 60 * 60 * 12)); // 每12小时一个时间戳
         临时TOKEN = await 双重哈希(url.hostname + timestamp + UA);
         永久TOKEN = env.TOKEN || 临时TOKEN;
         if (路径 === '/check') {
