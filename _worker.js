@@ -1,10 +1,16 @@
 import { connect } from 'cloudflare:sockets';
+let 临时TOKEN, 永久TOKEN;
 export default {
     async fetch(request, env, ctx) {
         const url = new URL(request.url);
+        const UA = request.headers.get('User-Agent') || 'null';
         const 路径 = url.pathname;
+        const currentDate = new Date();
+        const timestamp = Math.ceil(currentDate.getTime() / (1000 * 60 * 31)); // 每31分钟一个时间戳
+        临时TOKEN = await 双重哈希(url.hostname + timestamp + UA);
+        永久TOKEN = env.TOKEN || 临时TOKEN;
         if (路径 === '/check') {
-            const 查询参数 = url.searchParams.get('dns64') || 'dns64.cmliussss.net';
+            const 查询参数 = url.searchParams.get('dns64') || url.searchParams.get('nat64') || 'dns64.cmliussss.net';
             try {
                 const ipv6地址 = await resolveToIPv6('speed.cloudflare.com', 查询参数);
 
@@ -20,7 +26,7 @@ export default {
                 } else {
                     return new Response(JSON.stringify({
                         nat64_ipv6: ipv6地址,
-                        //cdn_cgi_url: `http://[${ipv6地址}]/cdn-cgi/trace`,
+                        cdn_cgi_url: `http://[${ipv6地址}]/cdn-cgi/trace`,
                         error: '请求失败',
                         message: traceResult.error
                     }, null, 2), {
@@ -35,8 +41,83 @@ export default {
                     headers: { 'Content-Type': 'application/json' }
                 });
             }
+        } else if (路径 === '/ip-info') {
+            if (!url.searchParams.has('token') || (url.searchParams.get('token') !== 临时TOKEN) && (url.searchParams.get('token') !== 永久TOKEN)) {
+                return new Response(JSON.stringify({
+                    status: "error",
+                    message: `IP查询失败: 无效的TOKEN`,
+                    timestamp: new Date().toISOString()
+                }, null, 4), {
+                    status: 403,
+                    headers: {
+                        "content-type": "application/json; charset=UTF-8",
+                        'Access-Control-Allow-Origin': '*'
+                    }
+                });
+            }
+            let ip = url.searchParams.get('ip') || request.headers.get('CF-Connecting-IP');
+            if (!ip) {
+                return new Response(JSON.stringify({
+                    status: "error",
+                    message: "IP参数未提供",
+                    code: "MISSING_PARAMETER",
+                    timestamp: new Date().toISOString()
+                }, null, 4), {
+                    status: 400,
+                    headers: {
+                        "content-type": "application/json; charset=UTF-8",
+                        'Access-Control-Allow-Origin': '*'
+                    }
+                });
+            }
+
+            if (ip.includes('[')) {
+                ip = ip.replace('[', '').replace(']', '');
+            }
+
+            try {
+                // 使用Worker代理请求HTTP的IP API
+                const response = await fetch(`http://ip-api.com/json/${ip}?lang=zh-CN`);
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error: ${response.status}`);
+                }
+
+                const data = await response.json();
+
+                // 添加时间戳到成功的响应数据中
+                data.timestamp = new Date().toISOString();
+
+                // 返回数据给客户端，并添加CORS头
+                return new Response(JSON.stringify(data, null, 4), {
+                    headers: {
+                        "content-type": "application/json; charset=UTF-8",
+                        'Access-Control-Allow-Origin': '*'
+                    }
+                });
+
+            } catch (error) {
+                console.error("IP查询失败:", error);
+                return new Response(JSON.stringify({
+                    status: "error",
+                    message: `IP查询失败: ${error.message}`,
+                    code: "API_REQUEST_FAILED",
+                    query: ip,
+                    timestamp: new Date().toISOString(),
+                    details: {
+                        errorType: error.name,
+                        stack: error.stack ? error.stack.split('\n')[0] : null
+                    }
+                }, null, 4), {
+                    status: 500,
+                    headers: {
+                        "content-type": "application/json; charset=UTF-8",
+                        'Access-Control-Allow-Origin': '*'
+                    }
+                });
+            }
         }
-        return new Response('Hello World!');
+        return new Response(临时TOKEN);
     },
 };
 
@@ -116,7 +197,7 @@ async function fetchCdnCgiTrace(ipv6Address) {
 
 // 解析 cdn-cgi/trace 响应内容
 function parseCdnCgiTrace(text) {
-    let result = { };
+    let result = {};
 
     const lines = text.trim().split('\n');
     for (const line of lines) {
@@ -295,12 +376,46 @@ async function resolveToIPv6(target, DNS64Server) {
         return answers;
     }
 
+    function convertToNAT64IPv6(ipv4Address) {
+        const parts = ipv4Address.split('.');
+        if (parts.length !== 4) {
+            throw new Error('无效的IPv4地址');
+        }
+
+        // 将每个部分转换为16进制
+        const hex = parts.map(part => {
+            const num = parseInt(part, 10);
+            if (num < 0 || num > 255) {
+                throw new Error('无效的IPv4地址段');
+            }
+            return num.toString(16).padStart(2, '0');
+        });
+
+        // 构造NAT64
+        return DNS64Server.split('/96')[0] + hex[0] + hex[1] + ":" + hex[2] + hex[3];
+    }
+
     try {
-        const ipv4 = await fetchIPv4(target);
-        const nat64 = await queryNAT64(ipv4 + '.ip.090227.xyz');
+        // 判断输入类型并处理
+        const ipv4 = isIPv4(target) ? target : await fetchIPv4(target);
+        const nat64 = DNS64Server.endsWith('/96') ? convertToNAT64IPv6(ipv4) : await queryNAT64(ipv4 + atob('LmlwLjA5MDIyNy54eXo='));
         return nat64;
     } catch (error) {
         console.error('解析错误:', error);
         return '解析失败';
     }
+}
+
+async function 双重哈希(文本) {
+    const 编码器 = new TextEncoder();
+
+    const 第一次哈希 = await crypto.subtle.digest('MD5', 编码器.encode(文本));
+    const 第一次哈希数组 = Array.from(new Uint8Array(第一次哈希));
+    const 第一次十六进制 = 第一次哈希数组.map(字节 => 字节.toString(16).padStart(2, '0')).join('');
+
+    const 第二次哈希 = await crypto.subtle.digest('MD5', 编码器.encode(第一次十六进制.slice(7, 27)));
+    const 第二次哈希数组 = Array.from(new Uint8Array(第二次哈希));
+    const 第二次十六进制 = 第二次哈希数组.map(字节 => 字节.toString(16).padStart(2, '0')).join('');
+
+    return 第二次十六进制.toLowerCase();
 }
