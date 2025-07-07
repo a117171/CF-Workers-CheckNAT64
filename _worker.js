@@ -18,13 +18,15 @@ export default {
 
                 // 使用 socket 方式请求 cdn-cgi/trace
                 const traceResult = await fetchCdnCgiTrace(ipv6地址);
-
+                const simplifiedIPv6 = simplifyIPv6(ipv6地址);
+                const nat64Prefix = extractNAT64Prefix(simplifiedIPv6);
                 if (traceResult.success) {
                     const result = parseCdnCgiTrace(traceResult.data);
                     const response = {
                         success: true,
-                        nat64_ipv6: ipv6地址,
-                        cdn_cgi_url: `http://[${ipv6地址}]/cdn-cgi/trace`,
+                        nat64_ipv6: simplifiedIPv6,
+                        nat64_prefix: nat64Prefix,
+                        cdn_cgi_url: `http://[${simplifiedIPv6}]/cdn-cgi/trace`,
                         trace_data: result,
                         timestamp: new Date().toISOString()
                     };
@@ -35,8 +37,9 @@ export default {
                 } else {
                     return new Response(JSON.stringify({
                         success: false,
-                        nat64_ipv6: ipv6地址,
-                        cdn_cgi_url: `http://[${ipv6地址}]/cdn-cgi/trace`,
+                        nat64_ipv6: simplifiedIPv6,
+                        nat64_prefix: nat64Prefix,
+                        cdn_cgi_url: `http://[${simplifiedIPv6}]/cdn-cgi/trace`,
                         error: '请求失败',
                         message: traceResult.error,
                         timestamp: new Date().toISOString()
@@ -421,6 +424,90 @@ async function resolveToIPv6(target, DNS64Server) {
         console.error('解析错误:', error);
         return '解析失败';
     }
+}
+
+// 从IPv6地址提取NAT64 Prefix (/96)
+function extractNAT64Prefix(ipv6Address) {
+    // 展开IPv6地址为完整形式
+    function expandIPv6(ipv6) {
+        // 处理 :: 缩写
+        if (ipv6.includes('::')) {
+            const parts = ipv6.split('::');
+            const leftParts = parts[0] ? parts[0].split(':') : [];
+            const rightParts = parts[1] ? parts[1].split(':') : [];
+            const missingParts = 8 - leftParts.length - rightParts.length;
+
+            const expandedParts = [
+                ...leftParts,
+                ...Array(missingParts).fill('0000'),
+                ...rightParts
+            ];
+
+            // 补全每个部分为4位
+            return expandedParts.map(part => part.padStart(4, '0')).join(':');
+        } else {
+            // 补全每个部分为4位
+            return ipv6.split(':').map(part => part.padStart(4, '0')).join(':');
+        }
+    }
+
+    try {
+        // 移除方括号
+        let cleanIPv6 = ipv6Address.replace(/^\[|\].*$/g, '');
+
+        // 展开IPv6地址为完整形式
+        const expandedIPv6 = expandIPv6(cleanIPv6);
+
+        // NAT64 IPv6地址格式: [prefix:96][IPv4:32]
+        // 提取前96位(前6个16位组)作为前缀
+        const parts = expandedIPv6.split(':');
+        if (parts.length !== 8) {
+            throw new Error('Invalid IPv6 address format');
+        }
+
+        // 取前6个部分作为NAT64前缀，移除前导0
+        const prefixParts = parts.slice(0, 6).map(part => {
+            return part.replace(/^0+/, '') || '0';
+        });
+
+        // 构建前缀并简化 - 如果最后几部分都是0，则用::简化
+        let prefix = prefixParts.join(':');
+
+        // 移除末尾的0部分并添加::
+        while (prefix.endsWith(':0')) {
+            prefix = prefix.slice(0, -2);
+        }
+
+        return prefix + '::/96';
+    } catch (error) {
+        console.error('提取NAT64前缀失败:', error);
+        return 'unknown::/96';
+    }
+}
+
+// 简化IPv6地址
+function simplifyIPv6(ipv6) {
+    // 移除方括号
+    let simplified = ipv6.replace(/^\[|\].*$/g, '');
+
+    // 循环处理 :0: 替换为 ::
+    while (simplified.includes(':0:')) {
+        simplified = simplified.replace(':0:', '::');
+    }
+
+    // 循环处理 ::: 替换为 ::
+    while (simplified.includes(':::')) {
+        simplified = simplified.replace(':::', '::');
+    }
+
+    // 移除前导零
+    simplified = simplified.replace(/:0+([0-9a-fA-F])/g, ':$1');
+    simplified = simplified.replace(/^0+([0-9a-fA-F])/g, '$1');
+
+    // 处理开头的 :0:
+    simplified = simplified.replace(/^:0:/, '::');
+
+    return simplified;
 }
 
 async function 双重哈希(文本) {
@@ -976,6 +1063,10 @@ async function HTML(hostname, 网站图标) {
                             <div class="copy-item" onclick="copyToClipboard('\${proxyIPValue}')">
                                 <div class="label">PROXYIP (域名格式)</div>
                                 <div class="value">\${proxyIPValue}</div>
+                            </div>
+                            <div class="copy-item" onclick="copyToClipboard('\${checkData.nat64_prefix}')">
+                                <div class="label">NAT64 (IPv6前缀)</div>
+                                <div class="value">\${checkData.nat64_prefix}</div>
                             </div>
                         </div>
                         
