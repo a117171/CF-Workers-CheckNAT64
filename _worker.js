@@ -761,8 +761,8 @@ async function HTML(hostname, 网站图标) {
             <div class="dns64-container">
                 <input type="text" id="dns64Input" class="dns64-input" placeholder="请选择预设值或输入自定义值">
                 <div class="dropdown" id="dropdown">
-                    <div class="dropdown-item" onclick="selectPreset('2001:67c:2960:6464::/96')">2001:67c:2960:6464::/96</div>
-                    <div class="dropdown-item" onclick="selectPreset('2001:67c:2b0:db32::/96')">2001:67c:2b0:db32::/96</div>
+                    <div class="dropdown-item" onclick="selectPreset('2001:67c:2960:6464::/96')">level66.services</div>
+                    <div class="dropdown-item" onclick="selectPreset('2001:67c:2b0:db32::/96')">dns64.trex.fi</div>
                     <div class="dropdown-item" onclick="selectPreset('dns64.fm2.ztvi.org')">dns64.fm2.ztvi.org</div>
                     <div class="dropdown-item" onclick="selectPreset('dns64.cmi.ztvi.org')">dns64.cmi.ztvi.org</div>
                 </div>
