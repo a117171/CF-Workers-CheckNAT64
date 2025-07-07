@@ -507,16 +507,44 @@ async function HTML(hostname, 网站图标) {
         
         .dns64-container {
             position: relative;
+            display: flex;
+            align-items: center;
         }
         
         .dns64-input {
             width: 100%;
-            padding: 15px;
+            padding: 15px 50px 15px 15px;
             border: 2px solid #e1e5e9;
             border-radius: 12px;
             font-size: 1em;
             transition: all 0.3s ease;
             background: #fff;
+        }
+        
+        .dropdown-arrow {
+            position: absolute;
+            right: 8px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 36px;
+            height: 36px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 6px;
+            transition: all 0.3s ease;
+            color: #666;
+        }
+        
+        .dropdown-arrow:hover {
+            background: rgba(102, 126, 234, 0.1);
+            color: #667eea;
+        }
+        
+        .dropdown-arrow.active {
+            transform: translateY(-50%) rotate(180deg);
+            color: #667eea;
         }
         
         .dns64-input:focus {
@@ -760,10 +788,15 @@ async function HTML(hostname, 网站图标) {
             <label for="dns64Input">DNS64 Server/NAT64 Prefix</label>
             <div class="dns64-container">
                 <input type="text" id="dns64Input" class="dns64-input" placeholder="请选择预设值或输入自定义值">
+                <div class="dropdown-arrow" id="dropdownArrow" onclick="toggleDropdown()">
+                    <svg width="12" height="8" viewBox="0 0 12 8" fill="currentColor">
+                        <path d="M1 1l5 5 5-5" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </div>
                 <div class="dropdown" id="dropdown">
                     <div class="dropdown-item" onclick="selectPreset('2001:67c:2960:6464::/96')">level66.services</div>
-                    <div class="dropdown-item" onclick="selectPreset('2001:67c:2b0:db32::/96')">www.trex.fi</div>
-                    <div class="dropdown-item" onclick="selectPreset('dns64.ztvi.hw.090227.xyz')">www.ztvi.org</div>
+                    <div class="dropdown-item" onclick="selectPreset('2001:67c:2b0:db32::/96')">Trex</div>
+                    <div class="dropdown-item" onclick="selectPreset('dns64.ztvi.hw.090227.xyz')">ZTVI</div>
                 </div>
             </div>
         </div>
@@ -785,6 +818,7 @@ async function HTML(hostname, 网站图标) {
     <script>
         const dns64Input = document.getElementById('dns64Input');
         const dropdown = document.getElementById('dropdown');
+        const dropdownArrow = document.getElementById('dropdownArrow');
         
         // 本地存储键名
         const STORAGE_KEY = 'dns64_nat64_server';
@@ -817,36 +851,45 @@ async function HTML(hostname, 网站图标) {
         }
         
         function showDropdown() {
-            if (dns64Input.value.trim() === '') {
-                dropdown.classList.add('show');
-            }
+            dropdown.classList.add('show');
+            dropdownArrow.classList.add('active');
         }
         
         function hideDropdown() {
             dropdown.classList.remove('show');
+            dropdownArrow.classList.remove('active');
+        }
+        
+        function toggleDropdown() {
+            if (dropdown.classList.contains('show')) {
+                hideDropdown();
+            } else {
+                showDropdown();
+            }
         }
         
         // 文本框聚焦时显示下拉框（如果为空）
         dns64Input.addEventListener('focus', function() {
-            showDropdown();
+            if (this.value.trim() === '') {
+                showDropdown();
+            }
         });
         
         // 文本框失去焦点时隐藏下拉框
         dns64Input.addEventListener('blur', function() {
             // 延迟隐藏，以便点击下拉选项时有时间处理
-            setTimeout(hideDropdown, 150);
+            setTimeout(() => {
+                // 检查是否点击的是下拉箭头，如果是则不隐藏
+                if (!dropdownArrow.matches(':hover')) {
+                    hideDropdown();
+                }
+            }, 150);
         });
         
         // 监听输入事件
         dns64Input.addEventListener('input', function() {
             const value = this.value.trim();
             saveToStorage(this.value); // 保存原始值（包含空格）
-            
-            if (value !== '') {
-                hideDropdown();
-            } else {
-                showDropdown();
-            }
         });
         
         // 监听键盘事件
