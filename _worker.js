@@ -623,7 +623,7 @@ async function HTML(hostname, 网站图标) {
         }
         
         .result.success {
-            background: linear-gradient(135deg, #4caf50, #45a049);
+            background: linear-gradient(135deg, #81c784, #66bb6a);
             color: white;
         }
         
@@ -709,7 +709,7 @@ async function HTML(hostname, 网站图标) {
             position: fixed;
             bottom: 20px;
             right: 20px;
-            background: #4caf50;
+            background: #81c784;
             color: white;
             padding: 15px 20px;
             border-radius: 8px;
@@ -970,11 +970,11 @@ async function HTML(hostname, 网站图标) {
                         
                         <div class="copy-section">
                             <div class="copy-item" onclick="copyToClipboard('\${nat64Value}')">
-                                <div class="label">NAT64 (点击复制)</div>
+                                <div class="label">PROXYIP (IPv6格式)</div>
                                 <div class="value">\${nat64Value}</div>
                             </div>
                             <div class="copy-item" onclick="copyToClipboard('\${proxyIPValue}')">
-                                <div class="label">PROXYIP (点击复制)</div>
+                                <div class="label">PROXYIP (域名格式)</div>
                                 <div class="value">\${proxyIPValue}</div>
                             </div>
                         </div>
