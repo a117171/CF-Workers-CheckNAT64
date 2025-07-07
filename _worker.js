@@ -623,7 +623,7 @@ async function HTML(hostname, 网站图标) {
         }
         
         .result.success {
-            background: linear-gradient(135deg, #81c784, #66bb6a);
+            background: linear-gradient(135deg, #5cbf60, #4caf50);
             color: white;
         }
         
@@ -709,7 +709,7 @@ async function HTML(hostname, 网站图标) {
             position: fixed;
             bottom: 20px;
             right: 20px;
-            background: #81c784;
+            background: #5cbf60;
             color: white;
             padding: 15px 20px;
             border-radius: 8px;
