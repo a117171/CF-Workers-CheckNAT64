@@ -772,18 +772,101 @@ async function HTML(hostname, 网站图标) {
         }
         
         .loading-spinner {
-            border: 4px solid rgba(255, 255, 255, 0.3);
-            border-radius: 50%;
-            border-top: 4px solid white;
             width: 40px;
             height: 40px;
+            border-radius: 50%;
+            background: conic-gradient(from 0deg, #667eea, #764ba2, #667eea);
+            mask: radial-gradient(circle at center, transparent 50%, black 52%);
+            -webkit-mask: radial-gradient(circle at center, transparent 50%, black 52%);
             animation: spin 1s linear infinite;
-            margin: 0 auto 10px;
+            margin: 0 auto;
+        }
+        
+        .loading-text {
+            font-size: 1.1em;
+            color: #333;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .loading-dots {
+            display: inline-block;
+            animation: loadingDots 1.5s infinite;
+        }
+        
+        .loading-progress {
+            display: inline-block;
+            animation: loadingProgress 2s ease-in-out infinite;
+        }
+        
+        .loading-pulse {
+            animation: loadingPulse 1.2s ease-in-out infinite;
         }
         
         @keyframes spin {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
+        }
+        
+        @keyframes loadingDots {
+            0%, 20% { 
+                content: '';
+                opacity: 0;
+            }
+            25% { 
+                content: '.';
+                opacity: 1;
+            }
+            50% { 
+                content: '..';
+                opacity: 1;
+            }
+            75% { 
+                content: '...';
+                opacity: 1;
+            }
+            100% { 
+                content: '';
+                opacity: 0;
+            }
+        }
+        
+        @keyframes loadingProgress {
+            0% { 
+                transform: translateX(-100%);
+                opacity: 0.5;
+            }
+            50% { 
+                transform: translateX(0%);
+                opacity: 1;
+            }
+            100% { 
+                transform: translateX(100%);
+                opacity: 0.5;
+            }
+        }
+        
+        @keyframes loadingPulse {
+            0%, 100% { 
+                opacity: 1;
+                transform: scale(1);
+            }
+            50% { 
+                opacity: 0.7;
+                transform: scale(1.02);
+            }
+        }
+        
+        .loading-wave {
+            display: inline-block;
+            animation: wave 1.5s ease-in-out infinite;
+        }
+        
+        @keyframes wave {
+            0%, 100% { transform: translateY(0px); }
+            25% { transform: translateY(-3px); }
+            50% { transform: translateY(0px); }
+            75% { transform: translateY(3px); }
         }
         
         @keyframes octocat-wave {
@@ -881,9 +964,9 @@ async function HTML(hostname, 网站图标) {
                     </svg>
                 </div>
                 <div class="dropdown" id="dropdown">
-                    <div class="dropdown-item" onclick="selectPreset('2001:67c:2960:6464::/96')">level66.services</div>
-                    <div class="dropdown-item" onclick="selectPreset('2001:67c:2b0:db32::/96')">Trex</div>
-                    <div class="dropdown-item" onclick="selectPreset('dns64.ztvi.hw.090227.xyz')">ZTVI</div>
+                    <div class="dropdown-item" onclick="selectPreset('2001:67c:2960:6464::/96')">level66.services（德国）</div>
+                    <div class="dropdown-item" onclick="selectPreset('dns64.trex.fi')">Trex（芬兰）</div>
+                    <div class="dropdown-item" onclick="selectPreset('dns64.ztvi.hw.090227.xyz')">ZTVI（美国）</div>
                 </div>
             </div>
         </div>
@@ -892,7 +975,6 @@ async function HTML(hostname, 网站图标) {
         
         <div class="loading" id="loading">
             <div class="loading-spinner"></div>
-            <p>正在检测中，请稍候...</p>
         </div>
         
         <div class="result" id="result">
@@ -1028,24 +1110,34 @@ async function HTML(hostname, 网站图标) {
             result.style.display = 'none';
             checkBtn.disabled = true;
             
-            try {
-                // 第一步：检测NAT64
+            const MAX_RETRIES = 3;
+            let retryCount = 0;
+            let lastError = null;
+            
+            // 检测函数
+            async function performCheck() {
                 const apiUrl = dns64Value 
                     ? \`https://${hostname}/check?nat64=\${encodeURIComponent(dns64Value)}\`
                     : \`https://${hostname}/check\`;
+                
                 const checkResponse = await fetch(apiUrl);
                 const checkData = await checkResponse.json();
                 
                 if (!checkData.success) {
-                    // 检测失败
-                    result.className = 'result error';
-                    result.innerHTML = \`
-                        <h3>❌ 检测失败</h3>
-                        <p><strong>错误信息：</strong>\${checkData.message || '未知错误'}</p>
-                        <p><strong>NAT64 IPv6：</strong>\${checkData.nat64_ipv6}</p>
-                        <p>此DNS64/NAT64服务器不可用作PROXYIP</p>
-                    \`;
-                } else {
+                    throw new Error(checkData.message || '检测失败');
+                }
+                
+                return checkData;
+            }
+            
+            // 重试逻辑
+            while (retryCount < MAX_RETRIES) {
+                retryCount++;
+                
+                try {
+                    // 第一步：检测NAT64
+                    const checkData = await performCheck();
+                    
                     // 检测成功，生成复制值
                     const nat64Value = \`[\${checkData.nat64_ipv6}]\`;
                     const proxyIPValue = \`ProxyIP.\${checkData.nat64_ipv6.replace(/:/g, '-')}.ip.090227.xyz\`;
@@ -1054,6 +1146,7 @@ async function HTML(hostname, 网站图标) {
                     result.innerHTML = \`
                         <h3>✅ 检测成功</h3>
                         <p>此DNS64/NAT64服务器可用作PROXYIP</p>
+                        \${retryCount > 1 ? \`<p style="color: rgba(255,255,255,0.8); font-size: 0.9em;">经过 \${retryCount} 次尝试后成功</p>\` : ''}
                         
                         <div class="copy-section">
                             <div class="copy-item" onclick="copyToClipboard('\${nat64Value}')">
@@ -1096,23 +1189,39 @@ async function HTML(hostname, 网站图标) {
                             console.error('获取IP信息失败:', ipError);
                         }
                     }
+                    
+                    result.style.display = 'block';
+                    loading.style.display = 'none';
+                    checkBtn.disabled = false;
+                    return; // 成功退出函数
+                    
+                } catch (error) {
+                    console.error(\`检测错误 (第\${retryCount}次尝试):\`, error);
+                    lastError = error;
+                    
+                    // 如果还有重试机会，等待100毫秒后继续
+                    if (retryCount < MAX_RETRIES) {
+                        await new Promise(resolve => setTimeout(resolve, 100));
+                        continue;
+                    }
                 }
-                
-                result.style.display = 'block';
-                
-            } catch (error) {
-                console.error('检测错误:', error);
-                result.className = 'result error';
-                result.innerHTML = \`
-                    <h3>❌ 网络错误</h3>
-                    <p>请检查网络连接后重试</p>
-                    <p><strong>错误详情：</strong>\${error.message}</p>
-                \`;
-                result.style.display = 'block';
-            } finally {
-                loading.style.display = 'none';
-                checkBtn.disabled = false;
             }
+            
+            // 所有重试都失败了
+            result.className = 'result error';
+            result.innerHTML = \`
+                <h3>❌ 检测失败</h3>
+                <p>经过 \${MAX_RETRIES} 次尝试后仍然失败</p>
+                <p><strong>最后一次错误：</strong>\${lastError?.message || '未知错误'}</p>
+                <p>此DNS64/NAT64服务器不可用作PROXYIP</p>
+                <p style="color: rgba(255,255,255,0.8); font-size: 0.9em; margin-top: 10px;">
+                    建议：请尝试其他DNS64服务器
+                </p>
+            \`;
+            
+            result.style.display = 'block';
+            loading.style.display = 'none';
+            checkBtn.disabled = false;
         }
         
         // 回车键触发检测
