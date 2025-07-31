@@ -965,7 +965,6 @@ async function HTML(hostname, 网站图标) {
                 </div>
                 <div class="dropdown" id="dropdown">
                     <div class="dropdown-item" onclick="selectPreset('2001:67c:2960:6464::/96')">level66.services（德国）</div>
-                    <div class="dropdown-item" onclick="selectPreset('dns64.trex.fi')">Trex（芬兰）</div>
                     <div class="dropdown-item" onclick="selectPreset('dns64.ztvi.hw.090227.xyz')">ZTVI（美国）</div>
                 </div>
             </div>
